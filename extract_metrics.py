@@ -53,7 +53,7 @@ def calculate_image_metrics(image_path):
     return metrics
 
 def main():
-    archive_dir = 'archive'
+    archive_dir = 'datasets/archive'
     data = []
     
     for root, _, files in os.walk(archive_dir):
