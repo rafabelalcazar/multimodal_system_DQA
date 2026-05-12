@@ -1,7 +1,16 @@
 import pandas as pd
 
-def analyze_quality(csv_path):
+def analyze_quality(csv_path, thresholds=None):
     df = pd.read_csv(csv_path)
+    
+    if thresholds is None:
+        thresholds = {
+            'blur': 10,
+            'dark': 50,
+            'bright': 220,
+            'contrast': 15,
+            'entropy': 4.0
+        }
     
     issues = {
         'blurry_images': 0,
@@ -14,22 +23,18 @@ def analyze_quality(csv_path):
     }
     
     # 1. Blurriness (Laplacian variance)
-    # Threshold < 10 is often considered quite blurry for Laplacian var
-    blur_threshold = 10
-    blurry = df[df['blur_score_laplacian_var'] < blur_threshold]
+    blurry = df[df['blur_score_laplacian_var'] < thresholds['blur']]
     issues['blurry_images'] = len(blurry)
     
     # 2. Brightness
-    # Brightness is mean pixel value (0-255). < 50 is dark, > 220 is very bright
-    dark = df[df['brightness_mean'] < 50]
+    dark = df[df['brightness_mean'] < thresholds['dark']]
     issues['dark_images'] = len(dark)
     
-    bright = df[df['brightness_mean'] > 220]
+    bright = df[df['brightness_mean'] > thresholds['bright']]
     issues['bright_images'] = len(bright)
     
     # 3. Contrast (Standard deviation of pixels)
-    # < 15 is generally low contrast
-    low_contrast = df[df['contrast_std'] < 15]
+    low_contrast = df[df['contrast_std'] < thresholds['contrast']]
     issues['low_contrast_images'] = len(low_contrast)
     
     # 4. Aspect Ratio
@@ -37,26 +42,33 @@ def analyze_quality(csv_path):
     issues['non_square_images'] = len(non_square)
     
     # 5. Entropy (Information content)
-    # Shannon entropy max is ~8 for 8-bit image. < 4 indicates very flat / empty image
-    low_entropy = df[df['entropy'] < 4.0]
+    low_entropy = df[df['entropy'] < thresholds['entropy']]
     issues['low_entropy_images'] = len(low_entropy)
     
     # 6. Channels
     single_channel = df[df['channels'] != 3]
     issues['single_channel_images'] = len(single_channel)
     
+    return issues, df, thresholds
+
+def print_report(issues, df, thresholds):
     print("=== REPORTE DE PROBLEMAS DE CALIDAD DE IMÁGENES ===")
     print(f"Total de imágenes analizadas: {len(df)}")
-    print(f"1. Imágenes borrosas (Laplacian Var < {blur_threshold}): {issues['blurry_images']}")
-    print(f"2. Imágenes muy oscuras (Brillo Medio < 50): {issues['dark_images']}")
-    print(f"3. Imágenes sobreexpuestas/muy brillantes (Brillo Medio > 220): {issues['bright_images']}")
-    print(f"4. Imágenes de bajo contraste (Std Dev < 15): {issues['low_contrast_images']}")
+    print(f"1. Imágenes borrosas (Laplacian Var < {thresholds['blur']}): {issues['blurry_images']}")
+    print(f"2. Imágenes muy oscuras (Brillo Medio < {thresholds['dark']}): {issues['dark_images']}")
+    print(f"3. Imágenes sobreexpuestas (Brillo Medio > {thresholds['bright']}): {issues['bright_images']}")
+    print(f"4. Imágenes de bajo contraste (Std Dev < {thresholds['contrast']}): {issues['low_contrast_images']}")
     print(f"5. Imágenes no cuadradas (Aspect Ratio != 1.0): {issues['non_square_images']}")
-    print(f"6. Imágenes con baja entropía / poca información (Entropía < 4.0): {issues['low_entropy_images']}")
+    print(f"6. Imágenes con baja entropía (Entropía < {thresholds['entropy']}): {issues['low_entropy_images']}")
     print(f"7. Imágenes sin 3 canales (Escala de grises): {issues['single_channel_images']}")
     
     print("\n--- Estadísticas Descriptivas ---")
     print(df[['blur_score_laplacian_var', 'brightness_mean', 'contrast_std', 'entropy']].describe())
 
 if __name__ == '__main__':
-    analyze_quality('image_quality_metrics.csv')
+    # Use the test file if it exists, otherwise the default
+    import os
+    csv_file = 'image_quality_metrics_test.csv' if os.path.exists('image_quality_metrics_test.csv') else 'image_quality_metrics.csv'
+    issues, df, thresholds = analyze_quality(csv_file)
+    print_report(issues, df, thresholds)
+
